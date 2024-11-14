@@ -23,7 +23,7 @@ class LabelSearchViewModel @Inject constructor(
     }
 
     private fun fetchLabels(){
-        viewModelScope.launch(Dispatchers.IO) {
+        viewModelScope.launch {
             _labels.emit(repository.getLabels())
         }
     }

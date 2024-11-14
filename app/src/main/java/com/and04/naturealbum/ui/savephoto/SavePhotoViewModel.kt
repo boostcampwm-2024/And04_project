@@ -8,7 +8,6 @@ import com.and04.naturealbum.data.room.Album
 import com.and04.naturealbum.data.room.Label
 import com.and04.naturealbum.data.room.PhotoDetail
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -46,7 +45,7 @@ class SavePhotoViewModel @Inject constructor(
         isRepresented: Boolean,
     ) {
         _photoSaveState.value = UiState.Loading
-        viewModelScope.launch(Dispatchers.IO) {
+        viewModelScope.launch {
             val labelId =
                 if (label.id == 0) repository.insertLabel(label).toInt()
                 else label.id
