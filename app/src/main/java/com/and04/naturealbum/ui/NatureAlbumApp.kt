@@ -113,6 +113,7 @@ fun NatureAlbumNavHost(
                 onSave = {
                     navController.navigate(NavigateDestination.Album.route) {
                         popUpTo(NavigateDestination.Home.route) { inclusive = false }
+                        selectedLabel = null
                     }
                 },
                 label = selectedLabel,
