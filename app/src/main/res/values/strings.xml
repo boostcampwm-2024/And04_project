@@ -80,6 +80,7 @@
     <string name="my_page_request_deny">거절</string>
     <string name="my_page_search_bar_search_icon">검색 바에서 검색 아이콘</string>
     <string name="my_page_sync">동기화</string>
+    <string name="my_page_working_sync">동기화 중</string>
     <string name="my_page_sync_icon_content_description">동기화 버튼</string>
     <string name="my_page_not_yet_sync">동기화 전적 없음</string>
     <string name="my_page_snackbar_confirm_button">확인</string>

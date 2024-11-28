@@ -63,6 +63,8 @@ class SynchronizationWorker @AssistedInject constructor(
         private const val HOUR = 0
         private const val MINUTE = 0
 
+        fun isWorking() = IS_RUNNING
+
         fun runSync(context: Context) {
             val duration = getDurationTime()
 
@@ -131,6 +133,7 @@ class SynchronizationWorker @AssistedInject constructor(
             val currentUser = Firebase.auth.currentUser ?: return@coroutineScope Result.failure()
             val uid = currentUser.uid
             IS_RUNNING = true
+
             val unSynchronizedPhotoDetailsToLocal: MutableList<FirebasePhotoInfoResponse> =
                 mutableListOf()
             val fileNameToLabelUid =

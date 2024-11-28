@@ -12,7 +12,9 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -21,6 +23,7 @@ import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material3.Badge
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -57,10 +60,10 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.and04.naturealbum.R
+import com.and04.naturealbum.background.workmanager.SynchronizationWorker
 import com.and04.naturealbum.data.dto.FirebaseFriend
 import com.and04.naturealbum.data.dto.FirebaseFriendRequest
 import com.and04.naturealbum.data.dto.FirestoreUserWithStatus
-import com.and04.naturealbum.background.workmanager.SynchronizationWorker
 import com.and04.naturealbum.data.dto.MyFriend
 import com.and04.naturealbum.ui.component.PortraitTopAppBar
 import com.and04.naturealbum.ui.friend.FriendViewModel
@@ -90,6 +93,7 @@ fun MyPageScreen(
         friendViewModel.receivedFriendRequests.collectAsStateWithLifecycle()
     val allUsersInfo = friendViewModel.allUsersWithStatus.collectAsStateWithLifecycle()
     val recentSyncTime = myPageViewModel.recentSyncTime.collectAsStateWithLifecycle()
+    val syncWorking = myPageViewModel.syncWorking.collectAsStateWithLifecycle()
 
     MyPageScreenContent(
         navigateToHome = navigateToHome,
@@ -104,7 +108,9 @@ fun MyPageScreen(
         sendFriendRequest = friendViewModel::sendFriendRequest,
         acceptFriendRequest = friendViewModel::acceptFriendRequest,
         rejectFriendRequest = friendViewModel::rejectFriendRequest,
-        recentSyncTime = recentSyncTime
+        recentSyncTime = recentSyncTime,
+        syncWorking = syncWorking,
+        startSync = myPageViewModel::startSync
     )
 }
 
@@ -122,7 +128,9 @@ fun MyPageScreenContent(
     sendFriendRequest: (String, String) -> Unit,
     acceptFriendRequest: (String, String) -> Unit,
     rejectFriendRequest: (String, String) -> Unit,
-    recentSyncTime: State<String>
+    recentSyncTime: State<String>,
+    syncWorking: State<Boolean>,
+    startSync: () -> Unit
 ) {
     val snackBarHostState = remember { SnackbarHostState() }
     Scaffold(
@@ -157,7 +165,9 @@ fun MyPageScreenContent(
             sendFriendRequest = sendFriendRequest,
             acceptFriendRequest = acceptFriendRequest,
             rejectFriendRequest = rejectFriendRequest,
-            snackBarHostState = snackBarHostState
+            snackBarHostState = snackBarHostState,
+            syncWorking = syncWorking,
+            startSync = startSync
         )
     }
 }
@@ -177,7 +187,9 @@ private fun MyPageContent(
     acceptFriendRequest: (String, String) -> Unit,
     rejectFriendRequest: (String, String) -> Unit,
     recentSyncTime: State<String>,
-    snackBarHostState: SnackbarHostState
+    snackBarHostState: SnackbarHostState,
+    syncWorking: State<Boolean>,
+    startSync: () -> Unit
 ) {
     val context = LocalContext.current
 
@@ -199,7 +211,9 @@ private fun MyPageContent(
                     emailState = userEmail,
                     displayNameState = userDisplayName,
                     snackBarHostState = snackBarHostState,
-                    recentSyncTime = recentSyncTime
+                    recentSyncTime = recentSyncTime,
+                    syncWorking = syncWorking,
+                    startSync = startSync
                 )
 
                 SocialContent(
@@ -232,7 +246,9 @@ private fun UserProfileContent(
     emailState: String?,
     displayNameState: String?,
     snackBarHostState: SnackbarHostState? = null,
-    recentSyncTime: State<String>? = null
+    recentSyncTime: State<String>? = null,
+    syncWorking: State<Boolean>? = null,
+    startSync: () -> Unit = {}
 ) {
     val uri = uriState ?: ""
     val email = emailState ?: stringResource(R.string.my_page_default_user_email)
@@ -265,7 +281,9 @@ private fun UserProfileContent(
         if (snackBarHostState != null) {
             SyncContent(
                 snackBarHostState = snackBarHostState,
-                recentSyncTime = recentSyncTime!!
+                recentSyncTime = recentSyncTime!!,
+                syncWorking = syncWorking!!,
+                startSync = startSync
             )
         }
     }
@@ -406,54 +424,90 @@ private fun MyPageCustomTab(tabState: Int, index: Int, title: String, onClick: (
 @Composable
 private fun SyncContent(
     snackBarHostState: SnackbarHostState,
-    recentSyncTime: State<String>
+    recentSyncTime: State<String>,
+    syncWorking: State<Boolean>,
+    startSync: () -> Unit
 ) {
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
 
     Row(
+        modifier = Modifier.height(64.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        Text(stringResource(R.string.my_page_sync))
-        IconButton(
-            onClick = {
-                when (NetworkState.getNetWorkCode()) {
-                    CONNECTED_WIFI -> {
-                        SynchronizationWorker.runImmediately(context)
-                    }
-
-                    CONNECTED_DATA -> {
-                        startSnackBar(
-                            context = context,
-                            coroutineScope = coroutineScope,
-                            snackBarHostState = snackBarHostState,
-                            message = context.getString(R.string.my_page_snackbar_network_state_data_keep_going),
-                            actionLabel = context.getString(R.string.my_page_snackbar_confirm_button)
-                        )
-                    }
-
-                    DISCONNECTED -> {
-                        startSnackBar(
-                            context = context,
-                            coroutineScope = coroutineScope,
-                            snackBarHostState = snackBarHostState,
-                            message = context.getString(R.string.my_page_snackbar_network_state_disconnect),
-                            actionLabel = null
-                        )
-                    }
-                }
-            }
-        ) {
-            Icon(
-                imageVector = Icons.Default.Sync,
-                contentDescription = stringResource(R.string.my_page_sync_icon_content_description)
+        if (syncWorking.value) {
+            WorkingSyncContent()
+        } else {
+            NotWorkingSyncContent(
+                context = context,
+                coroutineScope = coroutineScope,
+                snackBarHostState = snackBarHostState,
+                onClickIcon = startSync
             )
         }
     }
     Text(
         style = MaterialTheme.typography.bodySmall,
         text = recentSyncTime.value
+    )
+}
+
+@Composable
+private fun NotWorkingSyncContent(
+    context: Context,
+    coroutineScope: CoroutineScope,
+    snackBarHostState: SnackbarHostState,
+    onClickIcon: () -> Unit
+) {
+    Text(stringResource(R.string.my_page_sync))
+    IconButton(
+        onClick = {
+            when (NetworkState.getNetWorkCode()) {
+                CONNECTED_WIFI -> {
+                    SynchronizationWorker.runImmediately(context)
+                    onClickIcon()
+                }
+
+                CONNECTED_DATA -> {
+                    startSnackBar(
+                        context = context,
+                        coroutineScope = coroutineScope,
+                        snackBarHostState = snackBarHostState,
+                        message = context.getString(R.string.my_page_snackbar_network_state_data_keep_going),
+                        actionLabel = context.getString(R.string.my_page_snackbar_confirm_button),
+                        onClickActionPerformed = onClickIcon
+                    )
+                }
+
+                DISCONNECTED -> {
+                    startSnackBar(
+                        context = context,
+                        coroutineScope = coroutineScope,
+                        snackBarHostState = snackBarHostState,
+                        message = context.getString(R.string.my_page_snackbar_network_state_disconnect),
+                        actionLabel = null
+                    )
+                }
+            }
+        }
+    ) {
+        Icon(
+            imageVector = Icons.Default.Sync,
+            contentDescription = stringResource(R.string.my_page_sync_icon_content_description)
+        )
+    }
+}
+
+@Composable
+private fun WorkingSyncContent() {
+    Text(
+        modifier = Modifier.padding(end = 4.dp),
+        text = stringResource(R.string.my_page_working_sync)
+    )
+    CircularProgressIndicator(
+        modifier = Modifier
+            .size(20.dp)
     )
 
 }
@@ -463,7 +517,8 @@ private fun startSnackBar(
     coroutineScope: CoroutineScope,
     snackBarHostState: SnackbarHostState,
     message: String,
-    actionLabel: String?
+    actionLabel: String?,
+    onClickActionPerformed: () -> Unit = {}
 ) {
     coroutineScope.launch {
         val result = snackBarHostState.showSnackbar(
@@ -474,6 +529,7 @@ private fun startSnackBar(
 
         if (result == SnackbarResult.ActionPerformed) {
             SynchronizationWorker.runImmediately(context)
+            onClickActionPerformed()
         }
     }
 }
