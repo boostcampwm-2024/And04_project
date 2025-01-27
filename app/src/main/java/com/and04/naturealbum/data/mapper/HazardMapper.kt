@@ -1,7 +1,7 @@
 package com.and04.naturealbum.data.mapper
 
 import com.and04.naturealbum.data.dto.GreenEyeDto
-import com.and04.naturealbum.data.room.HazardAnalyzeStatus
+import com.and04.naturealbum.data.localdata.room.HazardAnalyzeStatus
 
 object HazardMapper {
     fun mapToPassOrFail(greenEyeDto: GreenEyeDto): HazardAnalyzeStatus {

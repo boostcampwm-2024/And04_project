@@ -29,12 +29,12 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.app.ActivityCompat
 import com.and04.naturealbum.R
-import com.and04.naturealbum.ui.LocationHandler
-import com.and04.naturealbum.ui.PermissionHandler
 import com.and04.naturealbum.ui.component.NavigationImageButton
 import com.and04.naturealbum.ui.component.PermissionDialogState
 import com.and04.naturealbum.ui.component.PermissionDialogs
 import com.and04.naturealbum.ui.theme.NatureAlbumTheme
+import com.and04.naturealbum.ui.utils.LocationHandler
+import com.and04.naturealbum.ui.utils.PermissionHandler
 import com.and04.naturealbum.utils.isPortrait
 
 const val MAP_BUTTON_BACKGROUND_OUTLINE_SVG = "btn_home_menu_map_background_outline.svg"
@@ -145,7 +145,6 @@ fun HomeScreen(
 
     if (context.isPortrait()) {
         HomeScreenPortrait(
-            context = context,
             onClickCamera = cameraPermissionCheck,
             onNavigateToAlbum = onNavigateToAlbum,
             onNavigateToMyPage = onNavigateToMyPage,
@@ -153,7 +152,6 @@ fun HomeScreen(
         )
     } else {
         HomeScreenLandscape(
-            context = context,
             onClickCamera = cameraPermissionCheck,
             onNavigateToAlbum = onNavigateToAlbum,
             onNavigateToMyPage = onNavigateToMyPage,
@@ -208,7 +206,6 @@ fun NavigateContent(
 private fun HomeScreenPreview() {
     NatureAlbumTheme {
         HomeScreenPortrait(
-            context = LocalContext.current,
             onClickCamera = { },
             onNavigateToAlbum = { },
             onNavigateToMyPage = { },

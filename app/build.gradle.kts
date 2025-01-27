@@ -155,8 +155,8 @@ dependencies {
     implementation(libs.androidx.exifinterface)
 
     // tensorflow lite
-    implementation(libs.tensorflow.lite)
-    implementation(libs.tensorflow.lite.task.vision)
+    //implementation(libs.tensorflow.lite)
+    //implementation(libs.tensorflow.lite.task.vision)
 
     // gemini
     implementation(libs.firebase.vertexai)
@@ -167,6 +167,8 @@ dependencies {
 
     //WorkManager
     implementation(libs.androidx.work.runtime.ktx)
+    androidTestImplementation(libs.androidx.work.testing)
+    androidTestImplementation(libs.truth)
 
     //Preferences Datastore
     implementation(libs.androidx.datastore.preferences)

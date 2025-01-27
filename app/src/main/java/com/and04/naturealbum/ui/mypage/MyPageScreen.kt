@@ -3,7 +3,6 @@ package com.and04.naturealbum.ui.mypage
 import android.content.Context
 import android.content.res.Configuration.UI_MODE_NIGHT_NO
 import android.content.res.Configuration.UI_MODE_NIGHT_YES
-import android.widget.ImageButton
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -29,7 +28,6 @@ import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.filled.WifiOff
 import androidx.compose.material3.Badge
-import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -53,7 +51,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.focus.focusModifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -72,19 +69,20 @@ import com.and04.naturealbum.background.workmanager.SynchronizationWorker
 import com.and04.naturealbum.data.dto.FirebaseFriend
 import com.and04.naturealbum.data.dto.FirebaseFriendRequest
 import com.and04.naturealbum.data.dto.MyFriend
-import com.and04.naturealbum.ui.PermissionHandler
+import com.and04.naturealbum.data.model.UserInfo
+import com.and04.naturealbum.ui.component.AppBarType
 import com.and04.naturealbum.ui.component.ProgressIndicator
 import com.and04.naturealbum.ui.component.RotatingButton
-import com.and04.naturealbum.ui.friend.FriendViewModel
-import com.and04.naturealbum.ui.model.UiState
-import com.and04.naturealbum.ui.model.UserInfo
+import com.and04.naturealbum.ui.mypage.friendsearch.FriendViewModel
 import com.and04.naturealbum.ui.theme.NatureAlbumTheme
-import com.and04.naturealbum.utils.GetMyPageTopAppBar
-import com.and04.naturealbum.utils.NetworkState
-import com.and04.naturealbum.utils.NetworkState.CONNECTED_DATA
-import com.and04.naturealbum.utils.NetworkState.CONNECTED_WIFI
-import com.and04.naturealbum.utils.NetworkState.DISCONNECTED
-import com.and04.naturealbum.utils.NetworkViewModel
+import com.and04.naturealbum.ui.utils.PermissionHandler
+import com.and04.naturealbum.ui.utils.UiState
+import com.and04.naturealbum.utils.GetTopBar
+import com.and04.naturealbum.utils.network.NetworkState
+import com.and04.naturealbum.utils.network.NetworkState.CONNECTED_DATA
+import com.and04.naturealbum.utils.network.NetworkState.CONNECTED_WIFI
+import com.and04.naturealbum.utils.network.NetworkState.DISCONNECTED
+import com.and04.naturealbum.utils.network.NetworkViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
@@ -151,7 +149,10 @@ fun MyPageScreenContent(
 
     Scaffold(
         topBar = {
-            context.GetMyPageTopAppBar { navigateToHome() }
+            context.GetTopBar(
+                type = AppBarType.Navigation,
+                navigateToBackScreen = { navigateToHome() }
+            )
         },
         snackbarHost = { SnackbarHost(hostState = snackBarHostState) }
     ) { innerPadding ->

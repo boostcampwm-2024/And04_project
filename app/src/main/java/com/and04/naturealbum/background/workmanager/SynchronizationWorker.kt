@@ -14,23 +14,26 @@ import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
-import com.and04.naturealbum.data.datastore.DataStoreManager
+import com.and04.naturealbum.data.localdata.datastore.DataStoreManager
 import com.and04.naturealbum.data.dto.FirebaseLabel
 import com.and04.naturealbum.data.dto.FirebaseLabelResponse
 import com.and04.naturealbum.data.dto.FirebasePhotoInfo
 import com.and04.naturealbum.data.dto.FirebasePhotoInfoResponse
 import com.and04.naturealbum.data.dto.SyncAlbumsDto
 import com.and04.naturealbum.data.dto.SyncPhotoDetailsDto
+import com.and04.naturealbum.data.localdata.room.Album
+import com.and04.naturealbum.data.localdata.room.HazardAnalyzeStatus
+import com.and04.naturealbum.data.localdata.room.Label
+import com.and04.naturealbum.data.localdata.room.PhotoDetail
 import com.and04.naturealbum.data.repository.RetrofitRepository
 import com.and04.naturealbum.data.repository.firebase.AlbumRepository
-import com.and04.naturealbum.data.repository.local.LocalDataRepository
-import com.and04.naturealbum.data.room.Album
-import com.and04.naturealbum.data.room.HazardAnalyzeStatus
-import com.and04.naturealbum.data.room.Label
-import com.and04.naturealbum.data.room.PhotoDetail
-import com.and04.naturealbum.ui.mypage.UserManager
-import com.and04.naturealbum.utils.ImageConvert
-import com.and04.naturealbum.utils.toDateTimeString
+import com.and04.naturealbum.data.repository.local.LabelRepository
+import com.and04.naturealbum.data.repository.local.LocalAlbumRepository
+import com.and04.naturealbum.data.repository.local.PhotoDetailRepository
+import com.and04.naturealbum.data.repository.local.SyncRepository
+import com.and04.naturealbum.ui.utils.UserManager
+import com.and04.naturealbum.utils.image.ImageConvert
+import com.and04.naturealbum.utils.time.toDateTimeString
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.ktx.Firebase
 import dagger.assisted.Assisted
@@ -56,10 +59,13 @@ import java.util.concurrent.TimeUnit
 class SynchronizationWorker @AssistedInject constructor(
     @Assisted appContext: Context,
     @Assisted workerParams: WorkerParameters,
-    private val roomRepository: LocalDataRepository,
+    private val photoDetailRepository: PhotoDetailRepository,
     private val albumRepository: AlbumRepository,
     private val syncDataStore: DataStoreManager,
     private val retrofitRepository: RetrofitRepository,
+    private val syncRepository: SyncRepository,
+    private val localAlbumRepository: LocalAlbumRepository,
+    private val labelRepository: LabelRepository,
 ) : CoroutineWorker(appContext, workerParams) {
 
     companion object {
@@ -133,51 +139,48 @@ class SynchronizationWorker @AssistedInject constructor(
             val uid = currentUser.uid
             IS_RUNNING = true
 
-            val unSynchronizedPhotoDetailsToLocal: MutableList<FirebasePhotoInfoResponse> =
-                mutableListOf()
-            val fileNameToLabelUid =
-                HashMap<String, Pair<Int, String>>()// key LabelName, value (label_id to labelName)
+            val unSynchronizedPhotoDetailsToLocal = mutableListOf<FirebasePhotoInfoResponse>()
+            // key LabelName, value (label_id to labelName)
+            val fileNameToLabelUid = HashMap<String, Pair<Int, String>>()
 
             val label = async {
                 val labels = albumRepository.getLabelsToList(uid).getOrThrow()
-                val allLocalLabels = roomRepository.getSyncCheckAlbums()
+                val allLocalLabels = syncRepository.getSyncCheckAlbums()
 
-                val duplicationLabels = allLocalLabels.filter { label ->
-                    labels.any { firebaseLabel ->
-                        isUnSyncLabel(label, firebaseLabel)
+                allLocalLabels.forEach { localLabel ->
+                    var duplicationLabel = false
+                    var unSyncLocalData = true
+
+                    labels.forEach { firebaseLabel ->
+                        if (!duplicationLabel && isUnSyncLabel(localLabel, firebaseLabel)) {
+                            duplicationLabel = true
+                            launch {
+                                insertLabelToServer(uid, localLabel)
+                            }
+                        }
+
+                        if (firebaseLabel.labelName == localLabel.labelName) {
+                            unSyncLocalData = false
+                        }
                     }
-                }
 
-                val unSynchronizedLabelsToServer = allLocalLabels.filter { label ->
-                    labels.none { firebaseLabel ->
-                        firebaseLabel.labelName == label.labelName
-                    }
-                }
-
-                val unSynchronizedLabelsToLocal = labels.filter { label ->
-                    allLocalLabels.none { localLabel ->
-                        localLabel.labelName == label.labelName
-                    }
-                }
-
-                duplicationLabels.forEach { duplicationLabel ->
-                    launch {
-                        insertLabelToServer(uid, duplicationLabel)
-                    }
-                }
-
-                unSynchronizedLabelsToServer.forEach { label ->
-                    launch {
-                        insertLabelToServer(uid, label)
-                    }
-                }
-
-                unSynchronizedLabelsToLocal.forEach { label ->
-                    val labelId = roomRepository.getIdByName(label.labelName)
-                    if (labelId == null) {
+                    if (unSyncLocalData) {
                         launch {
-                            fileNameToLabelUid[label.labelName] =
-                                insertLabelToLocal(label) to label.fileName
+                            insertLabelToServer(uid, localLabel)
+                        }
+                    }
+                }
+
+                labels.forEach { firebaseLabel ->
+                    if (
+                        !allLocalLabels.sortedBy { it.labelName }.binarySearch(target = firebaseLabel.labelName)
+                    ) {
+                        val labelId = syncRepository.getIdByName(firebaseLabel.labelName)
+                        if (labelId == null) {
+                            launch {
+                                fileNameToLabelUid[firebaseLabel.labelName] =
+                                    insertLabelToLocal(firebaseLabel) to firebaseLabel.fileName
+                            }
                         }
                     }
                 }
@@ -185,25 +188,21 @@ class SynchronizationWorker @AssistedInject constructor(
 
             val photoDetail = async {
                 val allServerPhotos = albumRepository.getPhotosToList(uid).getOrThrow()
-                val allLocalPhotos = roomRepository.getSyncCheckPhotos()
+                val allLocalPhotos = syncRepository.getSyncCheckPhotos()
 
-                val unSynchronizedPhotoDetailsToServer = allLocalPhotos.filter { photo ->
-                    allServerPhotos.none { firebasePhoto ->
-                        firebasePhoto.fileName == photo.fileName
-                    }
-                }
-
-                unSynchronizedPhotoDetailsToServer.forEach { photo ->
-                    launch {
-                        insertPhotoDetailToServer(uid, photo)
+                allLocalPhotos.forEach { photo ->
+                    if (
+                        !allServerPhotos.sortedBy { it.fileName }.binarySearch(target = photo.fileName)
+                    ) {
+                        launch {
+                            insertPhotoDetailToServer(uid, photo)
+                        }
                     }
                 }
 
                 unSynchronizedPhotoDetailsToLocal.addAll(
                     allServerPhotos.filter { photo ->
-                        allLocalPhotos.none { localPhoto ->
-                            localPhoto.fileName == photo.fileName
-                        }
+                        !allLocalPhotos.sortedBy { it.fileName }.binarySearch(target = photo.fileName)
                     }
                 )
             }
@@ -259,7 +258,7 @@ class SynchronizationWorker @AssistedInject constructor(
                 name = label.labelName
             )
 
-            roomRepository.insertLabel(localLabelData).toInt()
+            labelRepository.insertLabel(localLabelData).toInt()
         }
 
     private suspend fun insertPhotoDetailAndAlbumToLocal(
@@ -274,7 +273,7 @@ class SynchronizationWorker @AssistedInject constructor(
 
         val labelId = findAlbumData?.first
             ?: fileNameToLabelUid[photo.label]?.first
-            ?: roomRepository.getIdByName(photo.label)!!
+            ?: syncRepository.getIdByName(photo.label)!!
 
         val isDeletedImage = syncDataStore.getDeletedFileNames().contains(photo.fileName)
         if (isDeletedImage) {
@@ -288,7 +287,7 @@ class SynchronizationWorker @AssistedInject constructor(
     }
 
     private suspend fun performHazardAnalysis(photo: SyncPhotoDetailsDto): HazardAnalyzeStatus {
-        val hazardAnalyzeStatus = roomRepository.getHazardCheckResultByFileName(photo.fileName)
+        val hazardAnalyzeStatus = syncRepository.getHazardCheckResultByFileName(photo.fileName)
         if (hazardAnalyzeStatus == HazardAnalyzeStatus.FAIL) return HazardAnalyzeStatus.FAIL
 
         val imgEncoding = ImageConvert.getBase64FromUri(applicationContext, photo.photoDetailUri)
@@ -299,7 +298,7 @@ class SynchronizationWorker @AssistedInject constructor(
         } else {
             HazardAnalyzeStatus.PASS
         }
-        roomRepository.updateHazardCheckResultByFIleName(updatedStatus, photo.fileName)
+        syncRepository.updateHazardCheckResultByFIleName(updatedStatus, photo.fileName)
         return updatedStatus
     }
 
@@ -337,7 +336,7 @@ class SynchronizationWorker @AssistedInject constructor(
     ): Int {
         val latitude = photo.latitude ?: 0.0
         val longitude = photo.longitude ?: 0.0
-        return roomRepository.insertPhoto(
+        return photoDetailRepository.insertPhoto(
             PhotoDetail(
                 labelId = labelId,
                 photoUri = uri,
@@ -360,7 +359,7 @@ class SynchronizationWorker @AssistedInject constructor(
     }
 
     private suspend fun insertAlbum(labelId: Int, photoDetailId: Int) {
-        roomRepository.insertPhotoInAlbum(
+        localAlbumRepository.insertPhotoInAlbum(
             Album(
                 labelId = labelId,
                 photoDetailId = photoDetailId
@@ -369,12 +368,12 @@ class SynchronizationWorker @AssistedInject constructor(
     }
 
     private suspend fun deleteServerPhoto(photo: FirebasePhotoInfoResponse, labelId: Int) {
-        val hazardAnalyzeStatus = roomRepository.getHazardCheckResultByFileName(photo.fileName)
+        val hazardAnalyzeStatus = syncRepository.getHazardCheckResultByFileName(photo.fileName)
         if (hazardAnalyzeStatus == HazardAnalyzeStatus.FAIL) return
 
         val uid = UserManager.getUser()?.uid
         if (!uid.isNullOrEmpty()) {
-            val label = roomRepository.getLabelById(labelId)
+            val label = labelRepository.getLabelById(labelId)
             val result = albumRepository.deleteImageFile(
                 uid = uid,
                 label = label,

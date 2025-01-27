@@ -7,7 +7,7 @@ import com.and04.naturealbum.data.mapper.HazardMapper
 import com.and04.naturealbum.data.mapper.ReverseGeocodeMapper
 import com.and04.naturealbum.data.mapper.ReverseGeocodeMapper.mapCoordsToRequestCoords
 import com.and04.naturealbum.data.retorifit.NaverApi
-import com.and04.naturealbum.data.room.HazardAnalyzeStatus
+import com.and04.naturealbum.data.localdata.room.HazardAnalyzeStatus
 import com.and04.naturealbum.di.GreenEye
 import com.and04.naturealbum.di.ReverseGeocode
 import java.io.IOException

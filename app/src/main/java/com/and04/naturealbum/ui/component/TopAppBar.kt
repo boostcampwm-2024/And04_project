@@ -23,116 +23,35 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.and04.naturealbum.R
-import com.and04.naturealbum.ui.mypage.UserManager
+import com.and04.naturealbum.ui.utils.UserManager
+
+enum class AppBarType {
+    None, Navigation, Action, All
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PortraitTopAppBar(
+fun NatureAlbumPortraitTopAppBar(
+    title: String,
+    type: AppBarType,
     navigateToBackScreen: () -> Unit,
     navigateToMyPage: () -> Unit,
 ) {
     TopAppBar(
-        title = {
-            Text(stringResource(R.string.app_name))
-        },
+        title = { Text(title) },
         navigationIcon = {
-            IconButton(onClick = { navigateToBackScreen() }) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = stringResource(R.string.my_page_arrow_back_icon_content_description)
-                )
+            if (type == AppBarType.All || type == AppBarType.Navigation) {
+                IconButton(onClick = { navigateToBackScreen() }) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = stringResource(R.string.my_page_arrow_back_icon_content_description)
+                    )
+                }
             }
         },
         actions = {
-            MyPageNavigationIconButton(navigateToMyPage = navigateToMyPage)
-        },
-        colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = Color.Transparent,
-        )
-    )
-}
-
-@Composable
-fun LandscapeTopAppBar(
-    navigateToBackScreen: () -> Unit,
-    navigateToMyPage: () -> Unit,
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(start = 30.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        IconButton(
-            onClick = { navigateToBackScreen() },
-        ) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = stringResource(R.string.top_bar_navigate_to_my_page)
-            )
-        }
-
-        Text(
-            text = stringResource(R.string.app_name),
-            textAlign = TextAlign.Start,
-        )
-        Box {
-            MyPageNavigationIconButton(navigateToMyPage = navigateToMyPage)
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun HomeTopAppBar(
-    navigateToMyPage: () -> Unit,
-) {
-    TopAppBar(
-        title = {
-            Text(stringResource(R.string.app_name))
-        },
-        actions = {
-            MyPageNavigationIconButton(navigateToMyPage = navigateToMyPage)
-        },
-        colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = Color.Transparent,
-        )
-    )
-}
-
-@Composable
-fun LandscapeHomeTopAppBar(onClick: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(start = 30.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            text = stringResource(R.string.app_name),
-            textAlign = TextAlign.Start,
-        )
-        Box {
-            MyPageNavigationIconButton(navigateToMyPage = onClick)
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun MyPageTopAppBar(
-    navigateToBackScreen: () -> Unit,
-) {
-    TopAppBar(
-        title = {
-            Text(stringResource(R.string.app_name))
-        },
-        navigationIcon = {
-            IconButton(onClick = { navigateToBackScreen() }) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = stringResource(R.string.my_page_arrow_back_icon_content_description)
-                )
+            if (type == AppBarType.All || type == AppBarType.Action) {
+                MyPageNavigationIconButton(navigateToMyPage)
             }
         },
         colors = TopAppBarDefaults.topAppBarColors(
@@ -142,8 +61,11 @@ fun MyPageTopAppBar(
 }
 
 @Composable
-fun LandscapeMyPageTopAppBar(
+fun NatureAlbumLandscapeTopAppBar(
+    title: String,
+    type: AppBarType,
     navigateToBackScreen: () -> Unit,
+    navigateToMyPage: () -> Unit,
 ) {
     Row(
         modifier = Modifier
@@ -151,7 +73,7 @@ fun LandscapeMyPageTopAppBar(
             .padding(start = 30.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box {
+        if (type == AppBarType.All || type == AppBarType.Navigation) {
             IconButton(
                 onClick = { navigateToBackScreen() },
             ) {
@@ -163,14 +85,20 @@ fun LandscapeMyPageTopAppBar(
         }
 
         Text(
-            text = stringResource(R.string.app_name),
+            text = title,
             textAlign = TextAlign.Start,
         )
+
+        if (type == AppBarType.All || type == AppBarType.Action) {
+            Box {
+                MyPageNavigationIconButton(navigateToMyPage = navigateToMyPage)
+            }
+        }
     }
 }
 
 @Composable
-fun MyPageNavigationIconButton(navigateToMyPage: () -> Unit) {
+private fun MyPageNavigationIconButton(navigateToMyPage: () -> Unit) {
     IconButton(onClick = { navigateToMyPage() }) {
         UserManager.getUserProfile()?.let { uri ->
             AsyncImage(
