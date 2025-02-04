@@ -1,7 +1,7 @@
 package com.and04.naturealbum.di
 
 import android.content.Context
-import com.and04.naturealbum.data.datastore.DataStoreManager
+import com.and04.naturealbum.data.localdata.datastore.DataStoreManager
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn

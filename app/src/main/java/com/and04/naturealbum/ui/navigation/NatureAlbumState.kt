@@ -17,17 +17,14 @@ import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.FileProvider
-import androidx.navigation.NavHostController
-import androidx.navigation.compose.rememberNavController
-import com.and04.naturealbum.data.room.Label
-import com.and04.naturealbum.ui.LocationHandler
-import com.and04.naturealbum.utils.ImageConvert
+import com.and04.naturealbum.data.localdata.room.Label
+import com.and04.naturealbum.ui.utils.LocationHandler
+import com.and04.naturealbum.utils.image.ImageConvert
 import java.io.File
 
 @SuppressLint("RestrictedApi")
 @Stable
 class NatureAlbumState(
-    val navController: NavHostController,
     private val context: Context,
 ) {
     var lastLocation = mutableStateOf<Location?>(null)
@@ -38,7 +35,10 @@ class NatureAlbumState(
     private var imageFile = mutableStateOf<File?>(null)
     var currentUid = mutableStateOf("")
 
-    fun handleLauncher(result: ActivityResult) {
+    fun handleLauncher(
+        result: ActivityResult,
+        navigator: NatureAlbumNavigator
+    ) {
         if (result.resultCode == RESULT_OK) {
             val resizePicture = ImageConvert.resizeImage(imageUri.value)!!
             imageFile.value?.delete()
@@ -46,16 +46,12 @@ class NatureAlbumState(
             fileName.value = resizePicture.fileName
 
             locationHandler.value.getLocation { location -> lastLocation.value = location }
-            navController.navigate(NavigateDestination.SavePhoto.route) {
-                launchSingleTop = true
-            }
+
+            navigator.navigateHomeToSaveAlbum()
         } else {
             imageUri.value = Uri.EMPTY
-            navController.navigate(NavigateDestination.Home.route) {
-                popUpTo(NavigateDestination.Home.route) { inclusive = false }
-                selectedLabel.value = null
-                launchSingleTop = true
-            }
+            navigator.navigateCameraToHome()
+            selectedLabel.value = null
         }
     }
 
@@ -79,47 +75,10 @@ class NatureAlbumState(
             }
         }
     }
-
-    fun popupBackStack() {
-        navController.popBackStack()
-    }
-
-    fun getNavBackStackEntry(route: String) = navController.getBackStackEntry(route)
-
-    fun navigateToAlbum() =
-        navController.navigate(NavigateDestination.Album.route)
-
-    fun navigateToMap() = navController.navigate(NavigateDestination.Map.route)
-
-    fun navigateToMyPage() = navController.navigate(NavigateDestination.MyPage.route) {
-        launchSingleTop = true
-    }
-
-    fun navigateToSearchLabel() = navController.navigate(NavigateDestination.SearchLabel.route)
-
-    fun navigateToHome() = navController.navigate(NavigateDestination.Home.route)
-
-    fun navigateSavePhotoToAlbum() {
-        navController.navigate(NavigateDestination.Album.route) {
-            popUpTo(NavigateDestination.Home.route) { inclusive = false }
-            selectedLabel.value = null
-        }
-    }
-
-    fun navigateToAlbumFolder(labelId: Int) {
-        navController.navigate("${NavigateDestination.AlbumFolder.route}/$labelId")
-    }
-
-    fun navigateToAlbumInfo(photoDetailId: Int) {
-        navController.navigate("${NavigateDestination.PhotoInfo.route}/$photoDetailId")
-    }
-
-    fun navigateToFriendSearch() = navController.navigate(NavigateDestination.FriendSearch.route)
 }
 
 @Composable
 fun rememberNatureAlbumState(
-    navController: NavHostController = rememberNavController(),
     context: Context = LocalContext.current,
 ): NatureAlbumState {
     val saver = Saver<NatureAlbumState, Map<String, Any?>>(
@@ -132,7 +91,6 @@ fun rememberNatureAlbumState(
         },
         restore = { restoredMap ->
             NatureAlbumState(
-                navController = navController,
                 context = context,
             ).apply {
                 imageUri.value = Uri.parse(restoredMap["imageUri"] as String)
@@ -144,7 +102,6 @@ fun rememberNatureAlbumState(
 
     return rememberSaveable(saver = saver) {
         NatureAlbumState(
-            navController = navController,
             context = context,
         )
     }

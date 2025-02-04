@@ -30,7 +30,7 @@ data class FirebasePhotoInfoResponse(
     val longitude: Double? = null,
     val description: String = "",
     val datetime: String = ""
-)
+): Sync
 
 data class FirebaseFriend(
     val user: FirestoreUser = FirestoreUser(),

@@ -1,7 +1,5 @@
 package com.and04.naturealbum.data.dto
 
-import java.time.LocalDateTime
-
 data class AlbumDto(
     val labelId: Int,
     val labelName: String,
@@ -15,7 +13,7 @@ data class SyncAlbumsDto(
     val labelBackgroundColor: String,
     val photoDetailUri: String,
     val fileName: String
-)
+): Sync
 
 data class SyncPhotoDetailsDto(
     val photoDetailUri: String,
@@ -25,4 +23,6 @@ data class SyncPhotoDetailsDto(
     val latitude: Double,
     val description: String,
     val datetime: String
-)
+): Sync
+
+sealed interface Sync

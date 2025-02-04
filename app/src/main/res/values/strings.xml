@@ -1,5 +1,7 @@
 <resources>
     <string name="app_name">Nature Album</string>
+    <string name="topbar_title_add_album">도감 등록</string>
+    <string name="topbar_title_photo_info">사진 정보</string>
 
     <!-- Search Label -->
     <string name="label_search_title_topbar">Label</string>

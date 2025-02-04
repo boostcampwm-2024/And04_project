@@ -29,6 +29,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -57,10 +58,10 @@ import com.and04.naturealbum.ui.component.LoadingAsyncImage
 import com.and04.naturealbum.ui.component.NetworkDisconnectContent
 import com.and04.naturealbum.ui.component.PartialBottomSheet
 import com.and04.naturealbum.ui.component.PhotoContent
-import com.and04.naturealbum.ui.mypage.UserManager
-import com.and04.naturealbum.utils.NetworkState
-import com.and04.naturealbum.utils.NetworkViewModel
-import com.and04.naturealbum.utils.toColor
+import com.and04.naturealbum.ui.utils.UserManager
+import com.and04.naturealbum.utils.color.toColor
+import com.and04.naturealbum.utils.network.NetworkState
+import com.and04.naturealbum.utils.network.NetworkViewModel
 import com.naver.maps.geometry.LatLngBounds
 import com.naver.maps.map.CameraAnimation
 import com.naver.maps.map.CameraUpdate
@@ -79,14 +80,11 @@ fun MapScreen(
 ) {
     val context = LocalContext.current
     val lifecycleOwner: LifecycleOwner = LocalLifecycleOwner.current
-
     val networkState = networkViewModel.networkState.collectAsStateWithLifecycle()
     val friends = userViewModel.friends.collectAsStateWithLifecycle()
-
     val photosByUid = userViewModel.photosByUid.collectAsStateWithLifecycle()
 
     val showPhotoContent = remember { mutableStateOf(false) }
-
     val openDialog = remember { mutableStateOf(false) }
     val pick = remember { mutableStateOf<PhotoItem?>(null) }
     val marker = remember {
@@ -99,55 +97,15 @@ fun MapScreen(
     }
     val bottomSheetPhotos = remember { mutableStateOf(listOf<PhotoItem>()) }
     val selectedFriends = remember { mutableStateOf(listOf<FirebaseFriend>()) }
-
-    val clusterManagers: List<ClusterManager> = remember {
-        // 클러스터 매니저 5개 미리 생성
-        ColorRange.entries.map { colorRange ->
-            ClusterManager(
-                colorRange = colorRange,
-                onClusterClick = { info ->
-                    Overlay.OnClickListener {
-                        bottomSheetPhotos.value = info.tag as List<PhotoItem>
-                        pick.value = bottomSheetPhotos.value
-                            .groupBy { photoItem -> photoItem.label }
-                            .maxBy { (_, photoItems) -> photoItems.size }.value
-                            .maxBy { photoItem -> photoItem.time }
-                        true
-                    }
-                },
-                onClusterChange = { info ->
-                    val changedCluster = info.tag as List<PhotoItem>
-                    if (changedCluster.contains(pick.value)) bottomSheetPhotos.value =
-                        changedCluster
-                }
-            )
-        }
-    }
-
+    val clusterManagers: List<ClusterManager> =
+        remember { ClusterManager.getList(bottomSheetPhotos, pick) }
     val mapView = remember {
-        MapView(context).apply {
-            id = R.id.map_view_id
-            getMapAsync { naverMap ->
-                clusterManagers.forEach { cluster ->
-                    cluster.setMap(naverMap)
-                }
-                naverMap.maxZoom = 18.0
-                naverMap.onMapClickListener = NaverMap.OnMapClickListener { _, _ ->
-                    bottomSheetPhotos.value = emptyList()
-                    pick.value = null
-                }
-                val uiSettings = naverMap.uiSettings
-                uiSettings.logoGravity = Gravity.TOP or Gravity.END
-                uiSettings.setLogoMargin(0, 16, 160, 0)
-                uiSettings.isCompassEnabled = false
-                uiSettings.isScaleBarEnabled = false
-                uiSettings.isZoomControlEnabled = false
-            }
+        mapViewSettings(MapView(context), clusterManagers) {
+            bottomSheetPhotos.value = emptyList()
+            pick.value = null
         }
     }
-
     val cameraPivot = remember { mutableStateOf(PointF(0.5f, 0.5f)) }
-
     val imageMarker = remember {
         ImageMarker(context).apply {
             visibility = View.INVISIBLE
@@ -162,90 +120,49 @@ fun MapScreen(
         bottomSheetPhotos.value = emptyList()
     }
 
-    LaunchedEffect(cameraPivot.value) {
-        mapView.getMapAsync { naverMap ->
-            pick.value?.let { pick ->
-                naverMap.moveCamera(
-                    CameraUpdate.scrollTo(pick.position).pivot(cameraPivot.value)
-                        .animate(CameraAnimation.Easing, 500)
-                )
-            }
-        }
-    }
+    EffectCollection(
+        cameraPivot = cameraPivot,
+        mapView = mapView,
+        pick = pick,
+        marker = marker,
+        imageMarker = imageMarker,
+        photosByUid = photosByUid,
+        clusterManagers = clusterManagers,
+        bottomSheetPhotos = bottomSheetPhotos,
+        lifecycleOwner = lifecycleOwner
+    )
 
-    LaunchedEffect(pick.value) {
-        mapView.getMapAsync { naverMap ->
-            marker.map = pick.value?.let { pick ->
-                naverMap.moveCamera(
-                    CameraUpdate.scrollTo(pick.position).pivot(cameraPivot.value)
-                        .animate(CameraAnimation.Easing, 500)
-                )
-                imageMarker.loadImage(pick.uri) {
-                    marker.icon = OverlayImage.fromView(imageMarker)
-                }
-                marker.position = pick.position
-                naverMap
-            }
-        }
-    }
+    NatureAlbumMap(
+        modifier = modifier,
+        networkState = networkState,
+        mapView = mapView,
+        userViewModel = userViewModel,
+        openDialog = openDialog,
+        bottomSheetPhotos = bottomSheetPhotos,
+        cameraPivot = cameraPivot,
+        pick = pick,
+        showPhotoContent = showPhotoContent,
+        friends = friends,
+        selectedFriends = selectedFriends,
+        navigateToHome = navigateToHome
+    )
+}
 
-    LaunchedEffect(photosByUid.value) {
-        clusterManagers.forEachIndexed { index, cluster ->
-            cluster.setPhotoItems(
-                photosByUid.value.keys.elementAtOrNull(index) ?: "",
-                photosByUid.value.values.elementAtOrNull(index) ?: emptyList()
-            )
-        }
-
-        pick.value = null
-        bottomSheetPhotos.value = emptyList()
-
-        val totalPhotos = photosByUid.value.values.flatten()
-        if (totalPhotos.isNotEmpty()) {
-            val bound = LatLngBounds.Builder().apply {
-                photosByUid.value.values.forEach { photoItems ->
-                    photoItems.forEach { photoItem ->
-                        include(photoItem.position)
-                    }
-                }
-            }.build()
-            mapView.getMapAsync { naverMap ->
-                naverMap.moveCamera(
-                    CameraUpdate.fitBounds(bound, 300).animate(CameraAnimation.Easing, 500)
-                )
-            }
-        }
-    }
-
-    // MapView의 생명주기를 관리하기 위해 DisposableEffect를 사용
-    DisposableEffect(lifecycleOwner) {
-        // 현재 LifecycleOwner의 Lifecycle을 가져오기
-        val lifecycle = lifecycleOwner.lifecycle
-        // Lifecycle 이벤트를 관찰하는 Observer를 생성
-        val observer = LifecycleEventObserver { _, event ->
-            when (event) {
-                Lifecycle.Event.ON_CREATE -> mapView.onCreate(null)
-                Lifecycle.Event.ON_START -> mapView.onStart()
-                Lifecycle.Event.ON_RESUME -> mapView.onResume()
-                Lifecycle.Event.ON_PAUSE -> mapView.onPause()
-                Lifecycle.Event.ON_STOP -> mapView.onStop()
-                Lifecycle.Event.ON_DESTROY -> mapView.onDestroy()
-                else -> {}
-            }
-        }
-        // Lifecycle에 Observer를 추가하여 생명주기를 관찰
-        lifecycle.addObserver(observer)
-
-        // DisposableEffect가 해제될 때 Observer를 제거하고 MapView의 리소스를 해제
-        onDispose {
-            lifecycle.removeObserver(observer)
-            clusterManagers.forEach { cluster ->
-                cluster.clear()
-            }
-            mapView.onDestroy() // MapView의 리소스를 해제하여 메모리 누수를 방지
-        }
-    }
-
+@Composable
+private fun NatureAlbumMap(
+    modifier: Modifier,
+    networkState: State<Int>,
+    mapView: MapView,
+    userViewModel: MapScreenViewModel,
+    openDialog: MutableState<Boolean>,
+    bottomSheetPhotos: MutableState<List<PhotoItem>>,
+    cameraPivot: MutableState<PointF>,
+    pick: MutableState<PhotoItem?>,
+    showPhotoContent: MutableState<Boolean>,
+    friends: State<List<FirebaseFriend>>,
+    selectedFriends: MutableState<List<FirebaseFriend>>,
+    navigateToHome: () -> Unit
+) {
     Box(modifier = modifier.fillMaxSize()) {
         if (networkState.value == NetworkState.DISCONNECTED) {
             NetworkDisconnectContent()
@@ -328,6 +245,102 @@ fun MapScreen(
     }
 }
 
+@Composable
+private fun EffectCollection(
+    cameraPivot: MutableState<PointF>,
+    mapView: MapView,
+    pick: MutableState<PhotoItem?>,
+    marker: Marker,
+    imageMarker: ImageMarker,
+    photosByUid: State<Map<String, List<PhotoItem>>>,
+    clusterManagers: List<ClusterManager>,
+    bottomSheetPhotos: MutableState<List<PhotoItem>>,
+    lifecycleOwner: LifecycleOwner,
+) {
+    LaunchedEffect(cameraPivot.value) {
+        mapView.getMapAsync { naverMap ->
+            pick.value?.let { pick ->
+                naverMap.moveCamera(
+                    CameraUpdate.scrollTo(pick.position).pivot(cameraPivot.value)
+                        .animate(CameraAnimation.Easing, 500)
+                )
+            }
+        }
+    }
+
+    LaunchedEffect(pick.value) {
+        mapView.getMapAsync { naverMap ->
+            marker.map = pick.value?.let { pick ->
+                naverMap.moveCamera(
+                    CameraUpdate.scrollTo(pick.position).pivot(cameraPivot.value)
+                        .animate(CameraAnimation.Easing, 500)
+                )
+                imageMarker.loadImage(pick.uri) {
+                    marker.icon = OverlayImage.fromView(imageMarker)
+                }
+                marker.position = pick.position
+                naverMap
+            }
+        }
+    }
+
+    LaunchedEffect(photosByUid.value) {
+        clusterManagers.forEachIndexed { index, cluster ->
+            cluster.setPhotoItems(
+                photosByUid.value.keys.elementAtOrNull(index) ?: "",
+                photosByUid.value.values.elementAtOrNull(index) ?: emptyList()
+            )
+        }
+
+        pick.value = null
+        bottomSheetPhotos.value = emptyList()
+
+        val totalPhotos = photosByUid.value.values.flatten()
+        if (totalPhotos.isNotEmpty()) {
+            val bound = LatLngBounds.Builder().apply {
+                totalPhotos.forEach { photoItem ->
+                    include(photoItem.position)
+                }
+            }.build()
+            mapView.getMapAsync { naverMap ->
+                naverMap.moveCamera(
+                    CameraUpdate.fitBounds(bound, 300).animate(CameraAnimation.Easing, 500)
+                )
+            }
+        }
+    }
+
+    DisposableEffect(lifecycleOwner) {
+        val lifecycle = lifecycleOwner.lifecycle
+
+        val observer = object : LifecycleEventObserver {
+            override fun onStateChanged(source: LifecycleOwner, event: Lifecycle.Event) {
+                when (event) {
+                    Lifecycle.Event.ON_CREATE -> mapView.onCreate(null)
+                    Lifecycle.Event.ON_START -> mapView.onStart()
+                    Lifecycle.Event.ON_RESUME -> mapView.onResume()
+                    Lifecycle.Event.ON_PAUSE -> mapView.onPause()
+                    Lifecycle.Event.ON_STOP -> mapView.onStop()
+                    Lifecycle.Event.ON_DESTROY -> {
+                        clusterManagers.forEach { cluster ->
+                            cluster.clear()
+                        }
+                        mapView.onDestroy()
+                        lifecycle.removeObserver(this)
+                    }
+
+                    else -> {}
+                }
+            }
+        }
+
+        lifecycle.addObserver(observer)
+
+        onDispose {
+        }
+    }
+}
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun PhotoGrid(
@@ -394,6 +407,31 @@ private fun PhotoGrid(
                     }
                 }
             }
+        }
+    }
+}
+
+private fun mapViewSettings(
+    mapview: MapView,
+    clusterManagers: List<ClusterManager>,
+    onMapClick: () -> Unit
+): MapView {
+    return mapview.apply {
+        id = R.id.map_view_id
+        getMapAsync { naverMap ->
+            clusterManagers.forEach { cluster ->
+                cluster.setMap(naverMap)
+            }
+            naverMap.maxZoom = 18.0
+            naverMap.onMapClickListener = NaverMap.OnMapClickListener { _, _ ->
+                onMapClick()
+            }
+            val uiSettings = naverMap.uiSettings
+            uiSettings.logoGravity = Gravity.TOP or Gravity.END
+            uiSettings.setLogoMargin(0, 16, 160, 0)
+            uiSettings.isCompassEnabled = false
+            uiSettings.isScaleBarEnabled = false
+            uiSettings.isZoomControlEnabled = false
         }
     }
 }

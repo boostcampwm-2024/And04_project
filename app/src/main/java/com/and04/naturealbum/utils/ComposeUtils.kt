@@ -3,12 +3,11 @@ package com.and04.naturealbum.utils
 import android.content.Context
 import android.content.res.Configuration
 import androidx.compose.runtime.Composable
-import com.and04.naturealbum.ui.component.HomeTopAppBar
-import com.and04.naturealbum.ui.component.LandscapeHomeTopAppBar
-import com.and04.naturealbum.ui.component.LandscapeMyPageTopAppBar
-import com.and04.naturealbum.ui.component.LandscapeTopAppBar
-import com.and04.naturealbum.ui.component.MyPageTopAppBar
-import com.and04.naturealbum.ui.component.PortraitTopAppBar
+import androidx.compose.ui.res.stringResource
+import com.and04.naturealbum.R
+import com.and04.naturealbum.ui.component.AppBarType
+import com.and04.naturealbum.ui.component.NatureAlbumLandscapeTopAppBar
+import com.and04.naturealbum.ui.component.NatureAlbumPortraitTopAppBar
 
 const val COLUMN_COUNT_PORTRAIT = 2
 const val COLUMN_COUNT_LANDSCAPE = 4
@@ -28,48 +27,24 @@ fun Context.gridColumnCount(): Int {
 
 @Composable
 fun Context.GetTopBar(
-    navigateToMyPage: () -> Unit,
-    navigateToBackScreen: () -> Unit,
+    title: String = stringResource(R.string.app_name),
+    type: AppBarType,
+    navigateToMyPage: () -> Unit = {},
+    navigateToBackScreen: () -> Unit = {},
 ) {
     if (isPortrait()) {
-        PortraitTopAppBar(
+        NatureAlbumPortraitTopAppBar(
+            title = title,
+            type = type,
             navigateToMyPage = navigateToMyPage,
-            navigateToBackScreen = navigateToBackScreen,
-        )
-    } else {
-        LandscapeTopAppBar(
-            navigateToMyPage = navigateToMyPage,
-            navigateToBackScreen = navigateToBackScreen,
-        )
-    }
-}
-
-@Composable
-fun Context.GetHomeTopBar(
-    navigateToMyPage: () -> Unit,
-){
-    if (isPortrait()) {
-        HomeTopAppBar(
-            navigateToMyPage = navigateToMyPage,
-        )
-    } else {
-        LandscapeHomeTopAppBar(
-            onClick = navigateToMyPage
-        )
-    }
-}
-
-@Composable
-fun Context.GetMyPageTopAppBar(
-    navigateToBackScreen: () -> Unit,
-){
-    if (isPortrait()) {
-        MyPageTopAppBar(
-            navigateToBackScreen = navigateToBackScreen,
-        )
-    } else {
-        LandscapeMyPageTopAppBar(
             navigateToBackScreen = navigateToBackScreen
+        )
+    } else {
+        NatureAlbumLandscapeTopAppBar(
+            title = title,
+            type = type,
+            navigateToMyPage = navigateToMyPage,
+            navigateToBackScreen = navigateToBackScreen,
         )
     }
 }

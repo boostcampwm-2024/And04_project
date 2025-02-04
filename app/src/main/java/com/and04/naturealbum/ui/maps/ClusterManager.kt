@@ -2,6 +2,7 @@ package com.and04.naturealbum.ui.maps
 
 import android.graphics.PointF
 import androidx.annotation.IntRange
+import androidx.compose.runtime.MutableState
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.toArgb
@@ -98,6 +99,32 @@ class ClusterManager(
         private const val THRESHOLD_DISTANCE = 30.0
 
         private val markerIcon = OverlayImage.fromResource(R.drawable.ic_cluster)
+
+        fun getList(
+            bottomSheetPhotos: MutableState<List<PhotoItem>>,
+            pick: MutableState<PhotoItem?>
+        ): List<ClusterManager> =
+            ColorRange.entries.map { colorRange ->
+                ClusterManager(
+                    colorRange = colorRange,
+                    onClusterClick = { info ->
+                        Overlay.OnClickListener {
+                            bottomSheetPhotos.value = info.tag as List<PhotoItem>
+                            pick.value = bottomSheetPhotos.value
+                                .groupBy { photoItem -> photoItem.label }
+                                .maxBy { (_, photoItems) -> photoItems.size }.value
+                                .maxBy { photoItem -> photoItem.time }
+                            true
+                        }
+                    },
+                    onClusterChange = { info ->
+                        val changedCluster = info.tag as List<PhotoItem>
+                        if (changedCluster.contains(pick.value)) bottomSheetPhotos.value =
+                            changedCluster
+                    }
+                )
+            }
+
 
         private fun sizeToTint(
             size: Int, min: Color, max: Color, @IntRange(from = 1) threshold: Int = 20

@@ -37,7 +37,7 @@
 
 ## ✨ 상세 기능
 
-<video src="https://github.com/user-attachments/assets/d94678b8-9fa7-403f-9682-339455125831" width="100%" controls></video>
+<video src="https://github.com/user-attachments/assets/c591e4e1-0a63-4d1f-857b-50beb7c6ad98" width="100%" controls></video>
 
 <details>
 <summary>도감 등록</summary>
@@ -230,7 +230,7 @@ FCM(Firebase Cloud Messaging)으로 친구 요청 알림을 구현하려 했으�
 
 #### 🔍 **문제 상황**
 1. Marker의 아이콘을 뷰로 생성할때 attach를 하지 않고 바로 비트맵으로 변환해서 내부의 이미지 비동기 로딩이 동작하지 않음.
-2. Compose에서 MapView의 라이프사이클을 관리해야 
+2. Compose에서 MapView의 라이프사이클을 관리해야함.
 
 #### 🚀 **해결 과정**
 1. **Marker - Coil 이미지 로드**  

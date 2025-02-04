@@ -1,6 +1,5 @@
 package com.and04.naturealbum.ui.component
 
-import android.content.Context
 import android.content.res.Configuration.UI_MODE_NIGHT_NO
 import android.content.res.Configuration.UI_MODE_NIGHT_YES
 import androidx.compose.foundation.Image
@@ -29,8 +28,8 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import com.and04.naturealbum.R
-import com.and04.naturealbum.utils.parseDrawableSvgFile
-import com.and04.naturealbum.utils.parseSvgFile
+import com.and04.naturealbum.utils.image.parseDrawableSvgFile
+import com.and04.naturealbum.utils.image.parseSvgFile
 
 private fun Path.scale(scaleX: Float, scaleY: Float) {
     val matrix = Matrix().apply {
@@ -66,7 +65,6 @@ private class SvgOutlineShape(
 
 @Composable
 fun ClippingButtonWithFile(
-    context: Context,
     modifier: Modifier,
     isFromAssets: Boolean = true,
     fileNameOrResId: Any,
@@ -75,6 +73,7 @@ fun ClippingButtonWithFile(
     imageResId: Int,
     onClick: () -> Unit,
 ) {
+    val context = LocalContext.current
     val svgData = when {
         isFromAssets && fileNameOrResId is String -> parseSvgFile(context, fileNameOrResId)
         !isFromAssets && fileNameOrResId is Int -> parseDrawableSvgFile(
@@ -152,7 +151,6 @@ private fun ClippingButton(
 private fun ClippingButtonWithFilePreview() {
     val context = LocalContext.current
     ClippingButtonWithFile(
-        context = context,
         modifier = Modifier,
         isFromAssets = true,
         fileNameOrResId = "btn_home_menu_map_background_outline.svg",
