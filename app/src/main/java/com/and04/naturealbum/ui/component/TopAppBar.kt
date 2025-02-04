@@ -19,6 +19,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTag
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
@@ -41,7 +43,10 @@ fun NatureAlbumPortraitTopAppBar(
         title = { Text(title) },
         navigationIcon = {
             if (type == AppBarType.All || type == AppBarType.Navigation) {
-                IconButton(onClick = { navigateToBackScreen() }) {
+                IconButton(
+                    modifier = Modifier.semantics { testTag = "navigation" },
+                    onClick = { navigateToBackScreen() }
+                ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = stringResource(R.string.my_page_arrow_back_icon_content_description)
@@ -51,7 +56,10 @@ fun NatureAlbumPortraitTopAppBar(
         },
         actions = {
             if (type == AppBarType.All || type == AppBarType.Action) {
-                MyPageNavigationIconButton(navigateToMyPage)
+                MyPageNavigationIconButton(
+                    modifier = Modifier.semantics { testTag = "action" },
+                    navigateToMyPage = navigateToMyPage
+                )
             }
         },
         colors = TopAppBarDefaults.topAppBarColors(
@@ -91,15 +99,24 @@ fun NatureAlbumLandscapeTopAppBar(
 
         if (type == AppBarType.All || type == AppBarType.Action) {
             Box {
-                MyPageNavigationIconButton(navigateToMyPage = navigateToMyPage)
+                MyPageNavigationIconButton(
+                    modifier = Modifier.semantics { testTag = "action" },
+                    navigateToMyPage = navigateToMyPage
+                )
             }
         }
     }
 }
 
 @Composable
-private fun MyPageNavigationIconButton(navigateToMyPage: () -> Unit) {
-    IconButton(onClick = { navigateToMyPage() }) {
+private fun MyPageNavigationIconButton(
+    modifier: Modifier,
+    navigateToMyPage: () -> Unit
+) {
+    IconButton(
+        modifier = modifier,
+        onClick = { navigateToMyPage() }
+    ) {
         UserManager.getUserProfile()?.let { uri ->
             AsyncImage(
                 model = uri,
